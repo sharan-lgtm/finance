@@ -1,0 +1,324 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User and Authentication
+model User {
+  id                String   @id @default(uuid())
+  email             String   @unique
+  passwordHash      String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  profile           UserProfile?
+  incomes           Income[]
+  transactions      Transaction[]
+  recurringExpenses RecurringExpense[]
+  debts             Debt[]
+  debtPayments      DebtPayment[]
+  budgets           Budget[]
+  goals             FinancialGoal[]
+  goalContributions GoalContribution[]
+  assets            Asset[]
+  liabilities       Liability[]
+  recommendations   Recommendation[]
+  snapshots         FinancialSnapshot[]
+
+  @@index([email])
+}
+
+model UserProfile {
+  id                      String   @id @default(uuid())
+  userId                  String   @unique
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  firstName               String?
+  age                     Int?
+  city                    String?
+  country                 String   @default("India")
+  maritalStatus           String   @default("single") // single, married, divorced
+  dependents              Int      @default(0)
+  riskTolerance           String   @default("medium") // low, medium, high
+  financialExperience     String   @default("beginner") // beginner, intermediate, advanced
+  hasHealthInsurance      Boolean  @default(false)
+  hasLifeInsurance        Boolean  @default(false)
+  insurancePremiumMonthly Decimal  @default(0) @db.Numeric(12, 2)
+
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// Income Management
+model Income {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  source       String   // 'salary', 'freelance', 'bonus', 'rental', etc.
+  amount       Decimal  @db.Numeric(12, 2)
+  frequency    String   // 'daily', 'weekly', 'monthly', 'annual'
+  salaryDate   Int?     // day of month (1-31)
+  isStable     Boolean  @default(true)
+  notes        String?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// Expense Categories
+model ExpenseCategory {
+  id        String    @id @default(uuid())
+  name      String
+  type      String    @default("variable") // 'fixed', 'variable', 'occasional'
+  color     String    @default("#3B82F6")
+  emoji     String    @default("📊")
+
+  transactions  Transaction[]
+  budgets       Budget[]
+  recurring     RecurringExpense[]
+
+  @@unique([name])
+}
+
+// Transactions
+model Transaction {
+  id                String   @id @default(uuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  categoryId        String
+  category          ExpenseCategory @relation(fields: [categoryId], references: [id])
+
+  type              String   // 'income', 'expense', 'transfer'
+  amount            Decimal  @db.Numeric(12, 2)
+  description       String?
+  transactionDate   DateTime
+  isRecurring       Boolean  @default(false)
+  recurringId       String?
+  tags              String[] @default([])
+  notes             String?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([userId])
+  @@index([categoryId])
+  @@index([transactionDate])
+}
+
+// Recurring Expenses
+model RecurringExpense {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  categoryId   String
+  category     ExpenseCategory @relation(fields: [categoryId], references: [id])
+
+  name         String
+  amount       Decimal  @db.Numeric(12, 2)
+  frequency    String   // 'daily', 'weekly', 'monthly', 'quarterly', 'annual'
+  startDate    DateTime
+  endDate      DateTime?
+  nextDueDate  DateTime
+  isActive     Boolean  @default(true)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// Debt Management
+model Debt {
+  id                   String   @id @default(uuid())
+  userId               String
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  debtType             String   // 'credit_card', 'personal_loan', 'home_loan', etc.
+  creditorName         String
+  outstandingAmount    Decimal  @db.Numeric(12, 2)
+  originalAmount       Decimal? @db.Numeric(12, 2)
+  interestRate         Decimal  @db.Numeric(5, 2) // annual percentage
+  interestType         String   @default("fixed") // 'fixed', 'variable'
+  emiAmount            Decimal? @db.Numeric(12, 2)
+  emiDueDate           Int?     // day of month
+  remainingTenureMonths Int?
+  startDate            DateTime
+  maturityDate         DateTime?
+  prepaymentAllowed    Boolean  @default(true)
+  prepaymentPenalty    Decimal  @default(0) @db.Numeric(5, 2)
+  status               String   @default("active") // 'active', 'closed', 'defaulted'
+
+  payments             DebtPayment[]
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+model DebtPayment {
+  id             String   @id @default(uuid())
+  debtId         String
+  debt           Debt     @relation(fields: [debtId], references: [id], onDelete: Cascade)
+
+  paymentAmount  Decimal  @db.Numeric(12, 2)
+  paymentDate    DateTime
+  principalPaid  Decimal  @db.Numeric(12, 2)
+  interestPaid   Decimal  @db.Numeric(12, 2)
+  isExtraPayment Boolean  @default(false)
+
+  createdAt      DateTime @default(now())
+
+  @@index([debtId])
+}
+
+// Budget
+model Budget {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  categoryId      String
+  category        ExpenseCategory @relation(fields: [categoryId], references: [id])
+
+  monthlyLimit    Decimal  @db.Numeric(12, 2)
+  weeklyLimit     Decimal  @db.Numeric(12, 2)
+  periodStart     DateTime
+  periodEnd       DateTime?
+  alertThreshold  Int      @default(80) // alert at 80% spent
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// Goals
+model FinancialGoal {
+  id                String   @id @default(uuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  goalName          String
+  targetAmount      Decimal  @db.Numeric(12, 2)
+  currentSavings    Decimal  @default(0) @db.Numeric(12, 2)
+  targetDate        DateTime
+  monthlyContribution Decimal @db.Numeric(12, 2)
+  priority          Int      @default(1)
+  flexibility       String   @default("flexible") // 'rigid', 'flexible'
+  inflationRate     Decimal  @default(5) @db.Numeric(4, 2)
+  notes             String?
+  status            String   @default("active") // 'active', 'paused', 'achieved', 'abandoned'
+
+  contributions     GoalContribution[]
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model GoalContribution {
+  id                String   @id @default(uuid())
+  goalId            String
+  goal              FinancialGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  amount            Decimal  @db.Numeric(12, 2)
+  contributionDate  DateTime
+
+  createdAt         DateTime @default(now())
+
+  @@index([goalId])
+}
+
+// Assets
+model Asset {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  assetType      String   // 'savings_account', 'fixed_deposit', 'ppf', 'mutual_fund', etc.
+  name           String
+  value          Decimal  @db.Numeric(12, 2)
+  currency       String   @default("INR")
+  lastUpdated    DateTime @default(now())
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// Liabilities
+model Liability {
+  id                String   @id @default(uuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  liabilityType     String
+  name              String
+  outstandingBalance Decimal @db.Numeric(12, 2)
+  interestRate      Decimal? @db.Numeric(5, 2)
+  monthlyPayment    Decimal? @db.Numeric(12, 2)
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// Financial Snapshots (for tracking wealth over time)
+model FinancialSnapshot {
+  id                      String   @id @default(uuid())
+  userId                  String
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  snapshotDate            DateTime
+  totalAssets             Decimal  @db.Numeric(12, 2)
+  totalLiabilities        Decimal  @db.Numeric(12, 2)
+  netWorth                Decimal  @db.Numeric(12, 2)
+  monthlyIncome           Decimal  @db.Numeric(12, 2)
+  monthlyExpenses         Decimal  @db.Numeric(12, 2)
+  emergencyFundStatus     Decimal  @db.Numeric(12, 2)
+  debtFreeMonths          Int?
+  financialHealthScore    Int      @default(0)
+
+  createdAt               DateTime @default(now())
+
+  @@index([userId])
+  @@index([snapshotDate])
+}
+
+// Recommendations
+model Recommendation {
+  id                String   @id @default(uuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  category          String   // 'spending_leak', 'debt_priority', 'savings', 'investment', etc.
+  title             String
+  description       String
+  priority          String   @default("medium") // 'low', 'medium', 'high', 'urgent'
+  action            String
+  potentialSaving   Decimal  @default(0) @db.Numeric(12, 2)
+  status            String   @default("new") // 'new', 'acknowledged', 'acted_on', 'dismissed'
+
+  createdAt         DateTime @default(now())
+  dismissedAt       DateTime?
+
+  @@index([userId])
+  @@index([status])
+}
