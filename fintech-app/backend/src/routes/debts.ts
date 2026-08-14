@@ -124,18 +124,18 @@ router.get('/analysis/payoff', async (req: AuthRequest, res: Response) => {
     });
 
     // Avalanche (highest interest first)
-    const avalanche = debts.sort((a, b) => Number(b.interestRate) - Number(a.interestRate));
+    const avalanche = debts.sort((a: any, b: any) => Number(b.interestRate) - Number(a.interestRate));
 
     // Snowball (smallest amount first)
-    const snowball = debts.sort((a, b) => Number(a.outstandingAmount) - Number(b.outstandingAmount));
+    const snowball = debts.sort((a: any, b: any) => Number(a.outstandingAmount) - Number(b.outstandingAmount));
 
     res.json({
-      avalanche: avalanche.map(d => ({
+      avalanche: avalanche.map((d: any) => ({
         id: d.id,
         name: d.creditorName,
         rate: Number(d.interestRate),
       })),
-      snowball: snowball.map(d => ({
+      snowball: snowball.map((d: any) => ({
         id: d.id,
         name: d.creditorName,
         outstanding: Number(d.outstandingAmount),

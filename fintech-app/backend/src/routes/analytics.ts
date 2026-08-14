@@ -43,7 +43,7 @@ router.get('/dashboard', async (req: AuthRequest, res: Response) => {
 
     const totalIncome = incomes.reduce((sum: number, inc: any) => sum + Number(inc.amount), 0);
     const totalExpenses = transactions
-      .filter(t => t.type === 'expense')
+      .filter((t: any) => t.type === 'expense')
       .reduce((sum: number, t: any) => sum + Number(t.amount), 0);
     const totalEMI = debts.reduce((sum: number, d: any) => sum + (Number(d.emiAmount) || 0), 0);
     const totalAssets = assets.reduce((sum: number, a: any) => sum + Number(a.value), 0);
@@ -124,7 +124,7 @@ router.get('/health-score', async (req: AuthRequest, res: Response) => {
 
     // Emergency fund (20 points)
     const emergencyFundTarget = incomes.reduce((sum: any, inc: any) => sum + Number(inc.amount), 0) * 3;
-    const emergencyFund = assets.filter(a => a.assetType === 'savings_account').reduce((sum: any, a: any) => sum + Number(a.value), 0);
+    const emergencyFund = assets.filter((a: any) => a.assetType === 'savings_account').reduce((sum: any, a: any) => sum + Number(a.value), 0);
     const emergencyRatio = emergencyFund / emergencyFundTarget;
     if (emergencyRatio < 0.25) score -= 20;
     else if (emergencyRatio < 0.5) score -= 15;
@@ -139,7 +139,7 @@ router.get('/health-score', async (req: AuthRequest, res: Response) => {
     else if (debtToIncome > 0.3) score -= 15;
 
     // Goal progress (15 points)
-    const goalsOnTrack = goals.filter(g => Number(g.currentSavings) >= Number(g.targetAmount) * 0.25).length;
+    const goalsOnTrack = goals.filter((g: any) => Number(g.currentSavings) >= Number(g.targetAmount) * 0.25).length;
     const goalRatio = goalsOnTrack / Math.max(goals.length, 1);
     if (goalRatio < 0.5) score -= 15;
     else if (goalRatio < 0.75) score -= 10;
