@@ -24,7 +24,7 @@ revolte:
           properties:
             indexPage: index.html
             errorPage: error.html
-            enableCdn: false
+            enableCdn: true
             variables:
               BASE_URL: /api/v1
     qa:
